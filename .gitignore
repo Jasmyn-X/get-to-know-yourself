@@ -6,6 +6,9 @@
 data/
 vault/
 
+# Local runtime config (use config.example.yaml as template)
+config.yaml
+
 # Python
 __pycache__/
 *.pyc
