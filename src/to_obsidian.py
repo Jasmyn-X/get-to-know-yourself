@@ -31,6 +31,9 @@ def render(note: Note) -> str:
     fm.append("---")
 
     body = [f"# {note.title}", ""]
+    if note.categories:
+        body.append("分类: " + " ".join(f"[[_分类/{c}]]" for c in note.categories))
+        body.append("")
     if note.cover_url:
         body.append(f"![cover]({note.cover_url})")
         body.append("")
