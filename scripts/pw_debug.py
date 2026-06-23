@@ -2,6 +2,7 @@
 运行: python scripts/pw_debug.py   (默认无头;传 --headed 用有头)
 产物: data/debug_screenshot.png, data/debug_api_urls.txt
 """
+import os
 import sys
 import time
 from pathlib import Path
@@ -9,10 +10,13 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 STATE = Path(".secrets/xhs_storage_state.json")
-USER_ID = "REDACTED_USER_ID"
+# 你的小红书 user_id。设环境变量 XHS_USER_ID,勿硬编码。
+USER_ID = os.environ.get("XHS_USER_ID", "")
 
 
 def main(headed: bool) -> int:
+    if not USER_ID:
+        raise SystemExit("请先设置环境变量 XHS_USER_ID(你的小红书 user_id)")
     api_urls: list[str] = []
     collect_hits: list[str] = []
 

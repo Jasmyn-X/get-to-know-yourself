@@ -7,6 +7,7 @@
     python -m src.fetch_browser
 """
 import json
+import os
 import time
 from pathlib import Path
 
@@ -14,7 +15,8 @@ from playwright.sync_api import sync_playwright
 
 STATE = Path(".secrets/xhs_storage_state.json")
 OUT = Path("data/raw_collect.json")
-USER_ID = "REDACTED_USER_ID"  # owner;后续可由 whoami 动态获取
+# 你的小红书 user_id(profile URL 里那段)。设环境变量 XHS_USER_ID,勿硬编码。
+USER_ID = os.environ.get("XHS_USER_ID", "")
 
 _COLLECT_MARKER = "note/collect/page"
 _MAX_SCROLLS = 200
@@ -37,6 +39,8 @@ def _note_id(item: dict) -> str | None:
 def run(headless: bool = True, out_path: Path = OUT) -> int:
     if not STATE.exists():
         raise SystemExit("未找到登录态,请先运行: python scripts/pw_login.py")
+    if not USER_ID:
+        raise SystemExit("请先设置环境变量 XHS_USER_ID(你的小红书 user_id)")
 
     collected: list[dict] = []
     seen: set[str] = set()
