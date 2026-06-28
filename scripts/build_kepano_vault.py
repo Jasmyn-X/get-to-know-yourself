@@ -117,6 +117,8 @@ def render_clipping(title, url, item, cat, typ, liked, published, tags,
     if published:
         fm.append(f"published: {published}")
     fm.append(f"clipped: {TODAY}")
+    if item.get("_archived"):
+        fm.append("archived: true")
     if tags:
         fm.append("xhs_tags:")
         for t in tags[:30]:
@@ -129,6 +131,8 @@ def render_clipping(title, url, item, cat, typ, liked, published, tags,
         meta += f" · ❤️{liked}"
     meta += f" · {typ}"
     b += [meta, ""]
+    if item.get("_archived"):
+        b += ["> [!warning] 已从收藏移除(可能失效/被删),此为历史快照", ""]
     if cover:
         b += [f"![]({cover})", ""]
     if desc.strip():

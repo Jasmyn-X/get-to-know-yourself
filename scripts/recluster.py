@@ -14,7 +14,9 @@ import os
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
+import glob
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -96,15 +98,30 @@ def summarize(labels, X, titles, texts):
     return summaries
 
 
-def propose_names(labels, old_labels):
-    """每个新簇 -> 旧分类多数票名字。返回 {new_cluster: (name, purity)}。"""
+def load_old_names_by_id() -> dict:
+    """从 vault/Clippings frontmatter 读 note_id -> 上次分类名(category 链接)。
+    按 id 对齐,避免 raw_collect 顺序/数量变化时位置错位。"""
+    out = {}
+    for p in glob.glob("vault/Clippings/**/*.md", recursive=True):
+        m = re.search(r"__([0-9a-zA-Z]{12,})\.md$", Path(p).name)
+        if not m:
+            continue
+        cm = re.search(r'category:\s*"?\[\[([^\]]+)\]\]',
+                       Path(p).read_text(encoding="utf-8"))
+        if cm:
+            out[m.group(1)] = cm.group(1)
+    return out
+
+
+def propose_names(labels, ids, old_name_by_id):
+    """每个新簇 -> 成员上次分类名的多数票(按 note_id 对齐)。"""
     out = {}
     for c in range(K):
         idx = np.where(labels == c)[0]
-        votes = Counter(CLUSTER_NAMES.get(old_labels[i], "?") for i in idx
-                        if i < len(old_labels))
+        votes = Counter(old_name_by_id[ids[i]] for i in idx
+                        if ids[i] in old_name_by_id)
         if not votes:
-            out[c] = ("(空簇)", 0.0)
+            out[c] = ("(新方向?)", 0.0)
             continue
         name, cnt = votes.most_common(1)[0]
         out[c] = (name, cnt / len(idx))
@@ -138,8 +155,8 @@ def main():
     n = len(raw)
     print(f"加载 {n} 条,其中 {enriched} 条含正文/逐字稿。开始嵌入({MODEL})...")
 
-    old = json.loads(CLUSTERS.read_text(encoding="utf-8")) if CLUSTERS.exists() else {}
-    old_labels = old.get("labels", [])
+    ids = [item["note_id"] for item in raw]
+    old_name_by_id = load_old_names_by_id()
 
     model = SentenceTransformer(MODEL)
     X = model.encode(texts, batch_size=64, normalize_embeddings=True,
@@ -149,8 +166,8 @@ def main():
     labels = km.fit_predict(X)
 
     summaries = summarize(labels, X, titles, texts)
-    proposed = propose_names(labels, old_labels) if old_labels else {
-        c: ("(无旧标签)", 0.0) for c in range(K)}
+    proposed = (propose_names(labels, ids, old_name_by_id) if old_name_by_id
+                else {c: ("(无旧分类)", 0.0) for c in range(K)})
 
     CLUSTERS.write_text(json.dumps(
         {"labels": labels.tolist(), "summaries": summaries},
